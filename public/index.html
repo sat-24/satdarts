@@ -6,7 +6,7 @@
 <title>Sat Darts</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
 <style>
-* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; user-select:none; }
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; user-select:none; touch-action:none; }
 
 body {
   background: #fff7c7;
@@ -20,177 +20,178 @@ body {
 /* ── SCORES ── */
 #scores {
   width:100%; display:flex;
-  background:rgba(0,0,0,0.06);
-  border-bottom:2px solid rgba(0,0,0,0.08);
   flex-shrink:0;
 }
 .score-block {
   flex:1; text-align:center;
   padding:10px 8px 8px;
   transition:background 0.25s;
+  border-bottom: 3px solid transparent;
 }
-.score-block:first-child { border-right:1px solid rgba(0,0,0,0.08); }
-.score-block.active { background:rgba(0,0,0,0.1); }
-.p-name { font-size:10px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:rgba(0,0,0,0.4); }
-.score-block:nth-child(1) .p-name { color:#1a7abf; }
-.score-block:nth-child(2) .p-name { color:#bf2222; }
-.p-score { font-size:44px; font-weight:900; color:#111; line-height:1.1; }
-.score-block.active .p-score { color:#111; }
-.p-darts { display:flex; gap:5px; justify-content:center; margin-top:3px; min-height:9px; }
-.pip { width:9px; height:9px; border-radius:50%; background:rgba(0,0,0,0.15); }
-.pip.on  { background:#333; }
-.pip.off { background:rgba(0,0,0,0.07); transform:scale(0.8); }
+.score-block:first-child { border-right:1px solid rgba(0,0,0,0.1); }
+.score-block.active { background:rgba(0,0,0,0.06); }
 
+/* per-player accent colours */
+.score-block.p0 .p-name  { color: #1a7abf; }
+.score-block.p0 .p-score { color: #1a7abf; }
+.score-block.p0.active   { border-bottom-color: #1a7abf; }
 
-/* ── GAME AREA: vertical meter + board ── */
-#game-area {
+.score-block.p1 .p-name  { color: #bf2222; }
+.score-block.p1 .p-score { color: #bf2222; }
+.score-block.p1.active   { border-bottom-color: #bf2222; }
+
+.p-name  { font-size:10px; font-weight:700; letter-spacing:3px; text-transform:uppercase; }
+.p-score { font-size:46px; font-weight:900; line-height:1.1; transition:transform 0.15s; }
+.score-block.active .p-score { transform:scale(1.05); }
+
+/* ── BOARD WRAPPER — clips zoom ── */
+#board-viewport {
   flex:1; display:flex;
   justify-content:center; align-items:center;
-  gap:14px;
-  padding:10px 14px 0;
-  min-height:0;
-  width:100%;
+  gap:12px;
+  padding:8px 12px 0;
+  min-height:0; width:100%;
+  overflow:hidden;
+  position:relative;
 }
 
 /* vertical meter */
 .vertical-meter {
-  width:22px;
-  height:100%;
+  width:20px;
+  align-self:stretch;
   background:#222;
   border:2px solid #555;
   border-radius:20px;
   position:relative;
   overflow:hidden;
   flex-shrink:0;
-  touch-action:none;
 }
 .v-target {
-  position:absolute;
-  height:3px; width:100%;
-  background:white; opacity:0.5;
+  position:absolute; height:3px; width:100%;
+  background:white; opacity:0.4;
   top:50%; transform:translateY(-50%);
 }
 #v-bar {
-  position:absolute;
-  height:5px; width:100%;
-  background:red;
+  position:absolute; height:5px; width:100%;
+  border-radius:3px;
   top:0;
 }
 
-/* board */
-#board {
+/* board outer container — keeps aspect ratio */
+#board-outer {
   position:relative;
-  /* square, fit available space */
-  height:100%;
+  flex:1; min-width:0; min-height:0;
   aspect-ratio:1;
-  min-width:0; min-height:0;
-  flex-shrink:1;
+  max-height:100%;
+  max-width:100%;
+  /* we size via JS */
+}
+
+/* the zooming/panning layer */
+#board-zoom {
+  position:absolute; inset:0;
+  transform-origin: center center;
+  transition: transform 0.6s cubic-bezier(0.4,0,0.2,1);
+  will-change: transform;
+}
+
+#board {
+  position:absolute; inset:0;
 }
 #dartboard {
-  width:100%; height:100%;
-  display:block;
+  width:100%; height:100%; display:block;
 }
 #dartboard text {
   font-family: Helvetica, sans-serif;
   font-weight:bolder;
   pointer-events:none;
 }
-/* dart SVG overlay */
-#dart {
-  position:absolute;
-  width:min(90px, 18vw);
-  transform:translate(-50%,-50%) rotate(15deg);
-  pointer-events:none;
-  display:none;
-  z-index:10;
-  filter:drop-shadow(2px 2px 3px rgba(0,0,0,0.5));
-}
-#dart svg { width:100%; display:block; }
 
 /* opponent turn overlay */
 #board-block {
   position:absolute; inset:0;
-  z-index:20; display:none;
-  cursor:not-allowed;
+  z-index:20; display:none; cursor:not-allowed;
+  border-radius:4px;
 }
 #turn-label {
-  position:absolute;
-  top:-28px; left:50%;
+  position:absolute; top:-32px; left:50%;
   transform:translateX(-50%);
   white-space:nowrap;
-  background:rgba(0,0,0,0.55);
-  color:rgba(255,255,255,0.85);
+  background:rgba(0,0,0,0.55); color:rgba(255,255,255,0.9);
   font-size:11px; font-weight:700;
   letter-spacing:2px; text-transform:uppercase;
   padding:5px 14px; border-radius:20px;
   display:none; z-index:5;
 }
 
+/* ── DARTS — always visible, sit at aim position ── */
+.dart-svg {
+  position:absolute;
+  width:70px;
+  pointer-events:none;
+  transform-origin: 8px 50%; /* tip is at left */
+  z-index:15;
+  transition: left 0.05s, top 0.05s;
+  filter:drop-shadow(2px 2px 4px rgba(0,0,0,0.5));
+}
+/* when thrown, animate to landing */
+.dart-svg.flying {
+  transition: left 0.35s cubic-bezier(0.4,0,0.6,1),
+              top  0.35s cubic-bezier(0.4,0,0.6,1);
+}
+/* once stuck: upright (pointing at board) */
+.dart-svg.stuck {
+  transition: none;
+  transform-origin: 8px 50%;
+}
+
 /* ── HORIZONTAL METER ── */
 #h-meter-wrap {
-  width:100%; padding:0 14px;
+  width:100%; padding:0 12px;
   flex-shrink:0;
 }
 .horizontal-meter {
-  width:100%;
-  height:22px;
-  background:#222;
-  border:2px solid #555;
-  border-radius:20px;
-  position:relative;
-  overflow:hidden;
-  margin:10px 0 6px;
-  touch-action:none;
+  width:100%; height:20px;
+  background:#222; border:2px solid #555;
+  border-radius:20px; position:relative;
+  overflow:hidden; margin:8px 0 4px;
 }
 .h-target {
-  position:absolute;
-  width:3px; height:100%;
-  background:white; opacity:0.5;
+  position:absolute; width:3px; height:100%;
+  background:white; opacity:0.4;
   left:50%; transform:translateX(-50%);
 }
 #h-bar {
-  position:absolute;
-  width:5px; height:100%;
-  background:red;
-  left:0;
+  position:absolute; width:5px; height:100%;
+  border-radius:3px; left:0;
 }
 
-/* ── THROW INSTRUCTION ── */
 #tap-hint {
   font-size:11px; font-weight:700;
   letter-spacing:2px; text-transform:uppercase;
   color:rgba(0,0,0,0.35);
   text-align:center; padding:2px 0 8px;
+  min-height:24px;
 }
 
-/* ── SCORE POPUP ── */
-#score-pop {
-  position:fixed; top:46%; left:50%;
-  transform:translate(-50%,-50%) scale(0.3);
-  font-size:96px; font-weight:900; color:#fff;
-  -webkit-text-stroke:5px #111;
-  text-shadow:4px 4px 0 rgba(0,0,0,0.4);
-  pointer-events:none; z-index:300; opacity:0; transition:none;
+/* ── BIG SCORE TEXT on board ── */
+#hit-text {
+  position:absolute;
+  font-size:72px; font-weight:900;
+  pointer-events:none; z-index:30;
+  opacity:0; transform:translate(-50%,-120%) scale(0.5);
+  transition:none;
+  white-space:nowrap;
+  text-shadow: 3px 3px 0 rgba(0,0,0,0.25);
+  -webkit-text-stroke: 2px rgba(0,0,0,0.2);
 }
-#score-pop.show {
-  opacity:1; transform:translate(-50%,-50%) scale(1);
-  transition:transform 0.2s cubic-bezier(.12,.8,.35,1.4), opacity 0.18s;
+#hit-text.pop {
+  opacity:1; transform:translate(-50%,-120%) scale(1);
+  transition: transform 0.25s cubic-bezier(0.12,0.8,0.35,1.4), opacity 0.2s;
 }
-#score-pop.hide {
-  opacity:0; transform:translate(-50%,-58%) scale(0.8);
-  transition:all 0.28s ease-in;
-}
-#bust-pop {
-  position:fixed; top:46%; left:50%;
-  transform:translate(-50%,-50%) rotate(-9deg) scale(0.4);
-  font-size:76px; font-weight:900; color:#ff2222;
-  -webkit-text-stroke:4px #111;
-  text-shadow:4px 4px 0 rgba(0,0,0,0.4);
-  pointer-events:none; z-index:300; opacity:0; transition:none;
-}
-#bust-pop.show {
-  opacity:1; transform:translate(-50%,-50%) rotate(-9deg) scale(1);
-  transition:transform 0.2s cubic-bezier(.12,.8,.35,1.4), opacity 0.18s;
+#hit-text.fade {
+  opacity:0; transform:translate(-50%,-160%) scale(0.8);
+  transition: all 0.4s ease-in;
 }
 
 /* ── LOBBY ── */
@@ -202,7 +203,7 @@ body {
   gap:16px; padding:32px 28px;
 }
 .lob-title { font-size:82px; font-weight:900; color:#111; line-height:1; letter-spacing:-3px; }
-.lob-sub { font-size:11px; font-weight:700; color:rgba(0,0,0,0.35); letter-spacing:5px; text-transform:uppercase; margin-top:-14px; }
+.lob-sub   { font-size:11px; font-weight:700; color:rgba(0,0,0,0.35); letter-spacing:5px; text-transform:uppercase; margin-top:-14px; }
 .lob-field { display:flex; flex-direction:column; gap:6px; width:100%; max-width:290px; }
 .lob-field label { font-size:9px; font-weight:700; color:rgba(0,0,0,0.45); letter-spacing:3px; text-transform:uppercase; }
 .lob-field input {
@@ -220,7 +221,6 @@ body {
   border:none; border-radius:13px; padding:15px;
   font-family:'Nunito',sans-serif; font-size:20px; font-weight:900;
   cursor:pointer; box-shadow:0 5px 0 rgba(0,0,0,0.3);
-  transition:transform 0.1s, box-shadow 0.1s;
 }
 .lob-btn:active { transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,0.3); }
 .lob-hint { font-size:11px; font-weight:700; color:rgba(0,0,0,0.3); text-align:center; max-width:260px; line-height:1.8; }
@@ -241,7 +241,7 @@ body {
 /* ── GAME OVER ── */
 #gameover {
   position:fixed; inset:0; z-index:500;
-  background:rgba(0,0,0,0.8);
+  background:rgba(0,0,0,0.82);
   display:none; flex-direction:column;
   align-items:center; justify-content:center; gap:18px;
 }
@@ -249,18 +249,17 @@ body {
 @keyframes bob { to{transform:translateY(-10px)} }
 .go-head { font-size:54px; font-weight:900; color:#ffd700; }
 .go-name { font-size:26px; font-weight:900; color:#fff; }
-.go-row { display:flex; gap:20px; }
+.go-row  { display:flex; gap:20px; }
 .go-card { background:rgba(255,255,255,0.1); border-radius:14px; padding:14px 26px; text-align:center; }
-.go-pn { font-size:9px; font-weight:700; color:rgba(255,255,255,0.4); letter-spacing:2px; text-transform:uppercase; }
-.go-pv { font-size:38px; font-weight:900; color:#fff; }
-.go-btn { background:#fff7c7; color:#111; border:none; border-radius:13px; padding:13px 36px; font-family:'Nunito',sans-serif; font-size:19px; font-weight:900; cursor:pointer; }
+.go-pn   { font-size:9px; font-weight:700; color:rgba(255,255,255,0.4); letter-spacing:2px; text-transform:uppercase; }
+.go-pv   { font-size:38px; font-weight:900; color:#fff; }
+.go-btn  { background:#fff7c7; color:#111; border:none; border-radius:13px; padding:13px 36px; font-family:'Nunito',sans-serif; font-size:19px; font-weight:900; cursor:pointer; }
 
 #exit-btn {
   position:fixed; top:10px; right:10px; z-index:50; display:none;
   background:#111; color:#fff; border:none; border-radius:22px;
   padding:7px 16px; font-family:'Nunito',sans-serif;
-  font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
-  cursor:pointer;
+  font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; cursor:pointer;
 }
 </style>
 </head>
@@ -268,28 +267,18 @@ body {
 
 <!-- SCORES -->
 <div id="scores">
-  <div class="score-block" id="sb0">
+  <div class="score-block p0" id="sb0">
     <div class="p-name" id="pn0">Player 1</div>
     <div class="p-score" id="ps0">301</div>
-    <div class="p-darts" id="pd0">
-      <div class="pip" id="pip0-0"></div>
-      <div class="pip" id="pip0-1"></div>
-      <div class="pip" id="pip0-2"></div>
-    </div>
   </div>
-  <div class="score-block" id="sb1">
+  <div class="score-block p1" id="sb1">
     <div class="p-name" id="pn1">Player 2</div>
     <div class="p-score" id="ps1">301</div>
-    <div class="p-darts" id="pd1">
-      <div class="pip" id="pip1-0"></div>
-      <div class="pip" id="pip1-1"></div>
-      <div class="pip" id="pip1-2"></div>
-    </div>
   </div>
 </div>
 
-<!-- GAME AREA -->
-<div id="game-area">
+<!-- BOARD VIEWPORT -->
+<div id="board-viewport">
 
   <!-- vertical meter -->
   <div class="vertical-meter" id="v-meter">
@@ -297,28 +286,54 @@ body {
     <div id="v-bar"></div>
   </div>
 
-  <!-- board -->
-  <div id="board">
-    <div id="turn-label"></div>
-    <svg id="dartboard" viewBox="0 0 500 500"></svg>
-    <div id="dart">
-      <svg viewBox="0 0 220 40">
-        <polygon points="0,20 20,15 20,25" fill="#cfcfcf"/>
-        <rect x="20" y="15" width="80" height="10" rx="3" fill="#c0c0c0"/>
-        <rect x="30" y="15" width="3" height="10" fill="#888"/>
-        <rect x="40" y="15" width="3" height="10" fill="#888"/>
-        <rect x="50" y="15" width="3" height="10" fill="#888"/>
-        <rect x="60" y="15" width="3" height="10" fill="#888"/>
-        <rect x="70" y="15" width="3" height="10" fill="#888"/>
-        <rect x="100" y="17" width="30" height="6" fill="#444"/>
-        <polygon points="130,20 180,5 180,35" fill="#e33"/>
-        <polygon points="130,20 180,5 150,20" fill="#ff6666"/>
-        <polygon points="130,20 180,35 150,20" fill="#aa0000"/>
-      </svg>
-    </div>
-    <div id="board-block"></div>
-  </div>
+  <!-- zooming board -->
+  <div id="board-outer">
+    <div id="board-zoom">
+      <div id="board">
+        <div id="turn-label"></div>
+        <svg id="dartboard" viewBox="0 0 500 500"></svg>
 
+        <!-- P0 dart — always visible -->
+        <svg id="dart0" class="dart-svg" viewBox="0 0 120 16">
+          <!-- tip -->
+          <polygon points="0,8 18,5 18,11" fill="#ddd"/>
+          <!-- barrel - blue for p0 -->
+          <rect x="18" y="4" width="44" height="8" rx="3" fill="#1a7abf"/>
+          <rect x="24" y="4" width="2" height="8" fill="rgba(255,255,255,0.3)"/>
+          <rect x="30" y="4" width="2" height="8" fill="rgba(255,255,255,0.3)"/>
+          <rect x="36" y="4" width="2" height="8" fill="rgba(255,255,255,0.3)"/>
+          <rect x="42" y="4" width="2" height="8" fill="rgba(255,255,255,0.3)"/>
+          <rect x="48" y="4" width="2" height="8" fill="rgba(255,255,255,0.3)"/>
+          <!-- shaft -->
+          <rect x="62" y="6" width="20" height="4" rx="2" fill="#444"/>
+          <!-- flights -->
+          <polygon points="82,8 116,1 116,15" fill="#1a7abf"/>
+          <polygon points="82,8 116,1 100,8"  fill="#5aacef"/>
+          <polygon points="82,8 116,15 100,8" fill="#0e5080"/>
+        </svg>
+
+        <!-- P1 dart — red -->
+        <svg id="dart1" class="dart-svg" viewBox="0 0 120 16">
+          <polygon points="0,8 18,5 18,11" fill="#ddd"/>
+          <rect x="18" y="4" width="44" height="8" rx="3" fill="#bf2222"/>
+          <rect x="24" y="4" width="2" height="8" fill="rgba(255,255,255,0.3)"/>
+          <rect x="30" y="4" width="2" height="8" fill="rgba(255,255,255,0.3)"/>
+          <rect x="36" y="4" width="2" height="8" fill="rgba(255,255,255,0.3)"/>
+          <rect x="42" y="4" width="2" height="8" fill="rgba(255,255,255,0.3)"/>
+          <rect x="48" y="4" width="2" height="8" fill="rgba(255,255,255,0.3)"/>
+          <rect x="62" y="6" width="20" height="4" rx="2" fill="#444"/>
+          <polygon points="82,8 116,1 116,15" fill="#bf2222"/>
+          <polygon points="82,8 116,1 100,8"  fill="#e06060"/>
+          <polygon points="82,8 116,15 100,8" fill="#7a0000"/>
+        </svg>
+
+        <!-- big score text -->
+        <div id="hit-text"></div>
+
+        <div id="board-block"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- HORIZONTAL METER -->
@@ -327,11 +342,9 @@ body {
     <div class="h-target"></div>
     <div id="h-bar"></div>
   </div>
-  <div id="tap-hint">TAP TO LOCK HORIZONTAL</div>
+  <div id="tap-hint"></div>
 </div>
 
-<div id="score-pop"></div>
-<div id="bust-pop">BUST!</div>
 <button id="exit-btn" onclick="location.reload()">EXIT</button>
 
 <!-- LOBBY -->
@@ -376,168 +389,251 @@ body {
 <script src="/socket.io/socket.io.js"></script>
 <script>
 // ════════════════════════════════════════════
-//  DRAW DARTBOARD (sat's original logic)
+//  DRAW DARTBOARD
 // ════════════════════════════════════════════
-const svg = document.getElementById("dartboard")
-const NS  = "http://www.w3.org/2000/svg"
+const svgEl = document.getElementById("dartboard")
+const NS = "http://www.w3.org/2000/svg"
 const bx=250, by=250
 
-const rings = {
-  innerSingle:100, tripleInner:100, tripleOuter:120,
-  outerSingle:190, doubleInner:190, doubleOuter:210
-}
-const SEGS = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5]
+// outer black
+let bg = document.createElementNS(NS,"circle")
+bg.setAttribute("cx",250); bg.setAttribute("cy",250)
+bg.setAttribute("r",250); bg.setAttribute("fill","black")
+svgEl.appendChild(bg)
 
-// outer black disc
-let nr=document.createElementNS(NS,"circle")
-nr.setAttribute("cx",250); nr.setAttribute("cy",250)
-nr.setAttribute("r",250); nr.setAttribute("fill","black")
-svg.appendChild(nr)
+const SEGS=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5]
 
-function createSlice(innerR,outerR,startAngle,endAngle,color){
-  let path=document.createElementNS(NS,"path")
-  let x1=bx+innerR*Math.cos(startAngle), y1=by+innerR*Math.sin(startAngle)
-  let x2=bx+outerR*Math.cos(startAngle), y2=by+outerR*Math.sin(startAngle)
-  let x3=bx+outerR*Math.cos(endAngle),   y3=by+outerR*Math.sin(endAngle)
-  let x4=bx+innerR*Math.cos(endAngle),   y4=by+innerR*Math.sin(endAngle)
-  let d=`M ${x1} ${y1} L ${x2} ${y2} A ${outerR} ${outerR} 0 0 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 0 0 ${x1} ${y1} Z`
-  path.setAttribute("d",d); path.setAttribute("fill",color)
-  svg.appendChild(path)
+function createSlice(innerR,outerR,a1,a2,color){
+  let p=document.createElementNS(NS,"path")
+  let x1=bx+innerR*Math.cos(a1), y1=by+innerR*Math.sin(a1)
+  let x2=bx+outerR*Math.cos(a1), y2=by+outerR*Math.sin(a1)
+  let x3=bx+outerR*Math.cos(a2), y3=by+outerR*Math.sin(a2)
+  let x4=bx+innerR*Math.cos(a2), y4=by+innerR*Math.sin(a2)
+  p.setAttribute("d",`M ${x1} ${y1} L ${x2} ${y2} A ${outerR} ${outerR} 0 0 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 0 0 ${x1} ${y1} Z`)
+  p.setAttribute("fill",color); svgEl.appendChild(p)
 }
 
 for(let i=0;i<20;i++){
-  let start=(i*18-9)*Math.PI/180
-  let end  =((i+1)*18-9)*Math.PI/180
-  let sliceColor=i%2==0?"#f0e6d6":"#000"
-  let ringColor =i%2==0?"green":"red"
-  createSlice(35,  rings.innerSingle,start,end,sliceColor)
-  createSlice(rings.tripleInner,rings.tripleOuter,start,end,ringColor)
-  createSlice(rings.tripleOuter,rings.outerSingle,start,end,sliceColor)
-  createSlice(rings.doubleInner,rings.doubleOuter,start,end,ringColor)
+  let s=(i*18-9)*Math.PI/180, e=((i+1)*18-9)*Math.PI/180
+  let sc=i%2==0?"#f0e6d6":"#000", rc=i%2==0?"green":"red"
+  createSlice(35,100, s,e, sc)
+  createSlice(100,120,s,e, rc)
+  createSlice(120,190,s,e, sc)
+  createSlice(190,210,s,e, rc)
 }
 
-function svgCircle(r,color){
-  let c=document.createElementNS(NS,"circle")
-  c.setAttribute("cx",250); c.setAttribute("cy",250)
-  c.setAttribute("r",r); c.setAttribute("fill",color)
-  svg.appendChild(c)
-}
-svgCircle(35,"#000")
-svgCircle(30,"#f0e6d6")
-svgCircle(15,"red")
+function svgCircle(r,c){ let el=document.createElementNS(NS,"circle"); el.setAttribute("cx",250); el.setAttribute("cy",250); el.setAttribute("r",r); el.setAttribute("fill",c); svgEl.appendChild(el) }
+svgCircle(35,"#000"); svgCircle(30,"#f0e6d6"); svgCircle(15,"red")
 
-const numberRadius=230
 for(let i=0;i<20;i++){
-  let angle=i*18*Math.PI/180
-  let x=bx+numberRadius*Math.sin(angle)
-  let y=by-numberRadius*Math.cos(angle)
+  let a=i*18*Math.PI/180
   let t=document.createElementNS(NS,"text")
-  t.setAttribute("x",x); t.setAttribute("y",y)
+  t.setAttribute("x",bx+230*Math.sin(a)); t.setAttribute("y",by-230*Math.cos(a))
   t.setAttribute("fill","white"); t.setAttribute("font-size","22")
   t.setAttribute("text-anchor","middle"); t.setAttribute("dominant-baseline","middle")
-  t.textContent=SEGS[i]; svg.appendChild(t)
+  t.textContent=SEGS[i]; svgEl.appendChild(t)
 }
 
 // ════════════════════════════════════════════
-//  METERS — sat's original bouncing bar logic
+//  BOARD SIZE — compute pixels so we can position darts
 // ════════════════════════════════════════════
-let hPos=0, hDir=1, hLocked=false
-let vPos=0, vDir=1, vLocked=false
+// The SVG viewBox is 500x500. We need to map % → px on the rendered board.
+// dart position in px = (pct/100) * boardPx
 
-const hBar  = document.getElementById("h-bar")
-const vBar  = document.getElementById("v-bar")
-const hint  = document.getElementById("tap-hint")
+function getBoardPx(){
+  return document.getElementById('board').getBoundingClientRect().width
+}
 
+// Convert hPct/vPct to px position on #board element
+function pctToPx(hPct, vPct){
+  const sz = getBoardPx()
+  return { x: sz*(hPct/100), y: sz*(vPct/100) }
+}
+
+// ════════════════════════════════════════════
+//  DART POSITIONING
+// ════════════════════════════════════════════
+// Each dart SVG: tip is at left edge (x=0, y=8/16 = 50% of 16px viewBox height)
+// We position by setting left/top so the TIP lands at (x,y)
+// dart width is 70px CSS, so tip is at left=0 of the element
+
+// aim positions (in percent, updated as meters move)
+let aimH = [50, 50]  // hPct for each player
+let aimV = [50, 50]  // vPct for each player
+
+function positionDartAtPct(dartEl, hPct, vPct, stuck){
+  const sz = getBoardPx()
+  const x  = sz*(hPct/100)
+  const y  = sz*(vPct/100)
+  // tip of dart at (x,y): offset left by 0 (tip is at element left edge)
+  // vertically centred: tip is at 50% of element height (element height ~12px rendered)
+  dartEl.style.left = x + 'px'
+  dartEl.style.top  = y + 'px'
+  dartEl.style.transform = stuck
+    ? 'translateY(-50%) rotate(0deg)'      // pointing right, stuck in board
+    : 'translateY(-50%) rotate(-8deg)'     // slight angle while aiming
+}
+
+function updateDartPositions(){
+  if(!gameOn) return
+  // P0 dart follows aim if it's their turn, else stays stuck
+  const d0 = document.getElementById('dart0')
+  const d1 = document.getElementById('dart1')
+
+  if(myIndex===0){
+    // I am p0 — my dart follows meter
+    if(isMyTurn){
+      d0.classList.remove('flying','stuck')
+      positionDartAtPct(d0, aimH[0], aimV[0], false)
+    }
+  }
+  if(myIndex===1){
+    if(isMyTurn){
+      d1.classList.remove('flying','stuck')
+      positionDartAtPct(d1, aimH[1], aimV[1], false)
+    }
+  }
+}
+
+// ════════════════════════════════════════════
+//  CAMERA ZOOM
+// ════════════════════════════════════════════
+// boardZoom element: scale and translate to focus on a point
+// All coordinates in 0-1 fraction of board size
+
+function zoomToPoint(fracX, fracY, scale){
+  const zoom = document.getElementById('board-zoom')
+  // We want point (fracX, fracY) to be at center of viewport
+  // transform-origin is center center
+  // translate so that fracX,fracY maps to center
+  // After scale, offset = (0.5 - fracX)*sz*scale on each axis
+  const sz = getBoardPx()
+  const tx = (0.5 - fracX) * sz * scale
+  const ty = (0.5 - fracY) * sz * scale
+  zoom.style.transform = `scale(${scale}) translate(${tx/scale}px, ${ty/scale}px)`
+}
+
+function zoomOut(){
+  const zoom = document.getElementById('board-zoom')
+  zoom.style.transform = 'scale(1) translate(0px, 0px)'
+}
+
+// ════════════════════════════════════════════
+//  METERS — bounce logic
+// ════════════════════════════════════════════
+let hPos=50, hDir=1, hLocked=false
+let vPos=50, vDir=1, vLocked=false
 let hInterval=null, vInterval=null
 
-function startHorizontal(){
+// meter bar colours per player
+const PLAYER_COLORS = ['#1a7abf','#bf2222']
+
+function setMeterColors(playerIdx){
+  document.getElementById('h-bar').style.background = PLAYER_COLORS[playerIdx]
+  document.getElementById('v-bar').style.background = PLAYER_COLORS[playerIdx]
+}
+
+function startTurn(){
   hLocked=false; vLocked=false
-  hPos=0; hDir=1; vPos=0; vDir=1
-  hBar.style.left='0%'
-  vBar.style.top='0%'
-  hint.textContent='TAP TO LOCK HORIZONTAL'
+  hPos=50; hDir=1; vPos=50; vDir=1
+  document.getElementById('h-bar').style.left='50%'
+  document.getElementById('v-bar').style.top='50%'
+
   if(hInterval) clearInterval(hInterval)
   if(vInterval) clearInterval(vInterval)
+
+  setMeterColors(myIndex)
+  document.getElementById('tap-hint').textContent = 'TAP TO LOCK HORIZONTAL'
+  document.getElementById('tap-hint').style.color = PLAYER_COLORS[myIndex]
+
   hInterval = setInterval(()=>{
     if(hLocked) return
-    hPos += hDir*2
-    if(hPos>100||hPos<0) hDir*=-1
-    hBar.style.left=hPos+'%'
+    hPos += hDir * 2
+    if(hPos>=100||hPos<=0) hDir*=-1
+    document.getElementById('h-bar').style.left = hPos+'%'
+    // update dart aim as H moves
+    aimH[myIndex] = hPos
+    updateDartPositions()
   },20)
 }
 
-function startVertical(){
-  hint.textContent='TAP TO LOCK VERTICAL & THROW'
+function lockH(){
+  hLocked=true
+  clearInterval(hInterval)
+  document.getElementById('tap-hint').textContent = 'TAP TO LOCK VERTICAL & THROW'
+  document.getElementById('tap-hint').style.color = PLAYER_COLORS[myIndex]
   vInterval = setInterval(()=>{
     if(vLocked) return
-    vPos += vDir*2
-    if(vPos>100||vPos<0) vDir*=-1
-    vBar.style.top=vPos+'%'
+    vPos += vDir * 2
+    if(vPos>=100||vPos<=0) vDir*=-1
+    document.getElementById('v-bar').style.top = vPos+'%'
+    // update dart aim as V moves
+    aimV[myIndex] = vPos
+    updateDartPositions()
   },20)
 }
 
-function stopAll(){
-  if(hInterval) clearInterval(hInterval)
-  if(vInterval) clearInterval(vInterval)
-  hint.textContent=''
+function stopMeters(){
+  clearInterval(hInterval); clearInterval(vInterval)
+  document.getElementById('tap-hint').textContent = ''
 }
 
 // ════════════════════════════════════════════
-//  DART PLACEMENT (sat's score logic)
+//  HIT TEXT on board
 // ════════════════════════════════════════════
-const dartEl=document.getElementById("dart")
+// colours: p0=blue, p1=red, bull=yellow
+const SCORE_COLORS = ['#1a7abf', '#bf2222']
 
-function placeDart(hPct, vPct){
-  const board=document.getElementById("board")
-  const rect=board.getBoundingClientRect()
-  const x=rect.width*(hPct/100)
-  const y=rect.height*(vPct/100)
-  dartEl.style.left=x+'px'
-  dartEl.style.top=y+'px'
-  dartEl.style.display='block'
+function showHitText(score, bust, hPct, vPct, playerIdx){
+  const el = document.getElementById('hit-text')
+  const sz = getBoardPx()
+
+  // position above the dart hit point
+  el.style.left = (sz*(hPct/100)) + 'px'
+  el.style.top  = (sz*(vPct/100)) + 'px'
+
+  if(bust){
+    el.textContent = 'BUST!'
+    el.style.color = '#ff4444'
+    el.style.webkitTextStroke = '2px rgba(0,0,0,0.3)'
+  } else if(score===50){
+    el.textContent = 'BULL!'
+    el.style.color = '#ffd700'
+    el.style.webkitTextStroke = '2px rgba(0,0,0,0.3)'
+  } else if(score===25){
+    el.textContent = '25'
+    el.style.color = '#44cc44'
+    el.style.webkitTextStroke = '2px rgba(0,0,0,0.2)'
+  } else {
+    el.textContent = score === 0 ? 'MISS' : score
+    el.style.color = SCORE_COLORS[playerIdx]
+    el.style.webkitTextStroke = '2px rgba(255,255,255,0.4)'
+  }
+
+  el.className = ''
+  void el.offsetWidth
+  el.classList.add('pop')
+  setTimeout(()=>{ el.classList.remove('pop'); el.classList.add('fade') }, 1800)
+  setTimeout(()=>{ el.className='' }, 2400)
 }
 
-function calcScore(hPct, vPct){
-  // convert % to board coords (500x500 viewBox)
-  const boardX=(hPct/100)*500
-  const boardY=(vPct/100)*500
-  const dx=boardX-250, dy=boardY-250
-  const distance=Math.sqrt(dx*dx+dy*dy)
-
-  let angle=Math.atan2(dy,dx)*180/Math.PI
-  angle+=90; if(angle<0) angle+=360
-  const segment=Math.floor(angle/18)
-  const base=SEGS[segment]
-
-  if(distance<15)  return 50
-  if(distance<30)  return 25
-  if(distance<120) return base
-  if(distance<140) return base*3
-  if(distance<210) return base
-  if(distance<230) return base*2
-  return 0
-}
-
 // ════════════════════════════════════════════
-//  TAP / CLICK HANDLER
+//  TAP HANDLER
 // ════════════════════════════════════════════
 document.addEventListener('click', handleTap)
-document.addEventListener('touchend', e=>{ e.preventDefault(); handleTap(); }, {passive:false})
+document.addEventListener('touchend', e=>{ e.preventDefault(); handleTap() }, {passive:false})
 
 function handleTap(){
-  if(!isMyTurn || !gameOn) return
+  if(!isMyTurn||!gameOn) return
   if(!hLocked){
-    hLocked=true
-    clearInterval(hInterval)
-    startVertical()
+    lockH()
   } else if(!vLocked){
     vLocked=true
-    clearInterval(vInterval)
-    stopAll()
-    // throw!
-    const jh=hPos+(Math.random()-0.5)*2
-    const jv=vPos+(Math.random()-0.5)*2
-    socket.emit('throw_dart',{hPct:jh, vPct:jv})
+    stopMeters()
+    // send throw
+    const jh = Math.max(0,Math.min(100, hPos+(Math.random()-0.5)*2))
+    const jv = Math.max(0,Math.min(100, vPos+(Math.random()-0.5)*2))
+    socket.emit('throw_dart',{hPct:jh,vPct:jv})
   }
 }
 
@@ -547,107 +643,124 @@ function handleTap(){
 let socket=null, myIndex=-1, gameOn=false, isMyTurn=false
 let pNames=['Player 1','Player 2']
 
-function applyState(gs){
-  isMyTurn=(myIndex===gs.currentPlayer)&&!gs.gameOver
+function applyState(gs, animate, dartData){
+  isMyTurn = (myIndex===gs.currentPlayer)&&!gs.gameOver
 
-  document.getElementById('ps0').textContent=gs.scores[0]
-  document.getElementById('ps1').textContent=gs.scores[1]
-  document.getElementById('sb0').classList.toggle('active',gs.currentPlayer===0)
-  document.getElementById('sb1').classList.toggle('active',gs.currentPlayer===1)
+  document.getElementById('ps0').textContent = gs.scores[0]
+  document.getElementById('ps1').textContent = gs.scores[1]
+  document.getElementById('sb0').classList.toggle('active', gs.currentPlayer===0)
+  document.getElementById('sb1').classList.toggle('active', gs.currentPlayer===1)
 
-  for(let p=0;p<2;p++){
-    for(let d=0;d<3;d++){
-      const el=document.getElementById(`pip${p}-${d}`)
-      el.className='pip'
-      if(p===gs.currentPlayer){
-        if(d<gs.dartsThrown)        el.classList.add('off')
-        else if(d===gs.dartsThrown) el.classList.add('on')
-      }
-    }
-  }
-
-  const bb=document.getElementById('board-block')
-  const tl=document.getElementById('turn-label')
+  const bb = document.getElementById('board-block')
+  const tl = document.getElementById('turn-label')
 
   if(isMyTurn){
     bb.style.display='none'
     tl.style.display='none'
-    // hide previous dart, start fresh
-    dartEl.style.display='none'
-    startHorizontal()
-  } else {
+    zoomOut()
+    startTurn()
+  } else if(!gs.gameOver){
     bb.style.display='block'
+    tl.textContent = pNames[gs.currentPlayer]+"'s turn"
     tl.style.display='block'
-    tl.textContent=`${pNames[gs.currentPlayer]}'s turn`
-    stopAll()
-    hint.textContent=''
+    stopMeters()
+    document.getElementById('tap-hint').textContent=''
+    // zoom out (opponent will control their dart)
+    zoomOut()
   }
 }
 
-function showPopup(score,bust){
-  if(bust){
-    const el=document.getElementById('bust-pop')
-    el.className=''; void el.offsetWidth; el.classList.add('show')
-    setTimeout(()=>el.className='',2000)
-    return
-  }
-  const el=document.getElementById('score-pop')
-  el.textContent=score
-  el.style.color=score===50?'#e8a000':score>=40?'#22aa44':'#111'
-  el.className=''; void el.offsetWidth; el.classList.add('show')
-  setTimeout(()=>{ el.classList.remove('show'); el.classList.add('hide') },1300)
-  setTimeout(()=>el.className='',1800)
+// called when a dart_thrown event arrives
+function handleDartThrown(dart, bust, gs){
+  const playerIdx = dart.player
+  const dartEl = document.getElementById('dart'+playerIdx)
+  const hPct = dart.hPct, vPct = dart.vPct
+
+  // 1. animate dart flying to landing position
+  dartEl.classList.remove('stuck')
+  dartEl.classList.add('flying')
+  positionDartAtPct(dartEl, hPct, vPct, false)
+
+  // 2. zoom camera to landing area
+  const frac = 0.55 // zoom scale
+  setTimeout(()=>{
+    zoomToPoint(hPct/100, vPct/100, 2.2)
+    dartEl.classList.remove('flying')
+    dartEl.classList.add('stuck')
+    positionDartAtPct(dartEl, hPct, vPct, true)
+    showHitText(dart.score, bust, hPct, vPct, playerIdx)
+  }, 350)
+
+  // 3. zoom back out and apply next state
+  setTimeout(()=>{
+    zoomOut()
+    // reset the thrown dart position to center for next round feel
+    applyState(gs, false, null)
+  }, bust ? 2800 : 2600)
 }
 
 // ════════════════════════════════════════════
 //  SOCKET
 // ════════════════════════════════════════════
-document.getElementById('join-btn').addEventListener('click',doJoin)
+document.getElementById('join-btn').addEventListener('click', doJoin)
 document.getElementById('fi-room').addEventListener('keydown',e=>{ if(e.key==='Enter') doJoin() })
 
 function doJoin(){
-  const name=document.getElementById('fi-name').value.trim()||'Player'
-  const room=document.getElementById('fi-room').value.trim().toUpperCase()
+  const name = document.getElementById('fi-name').value.trim()||'Player'
+  const room = document.getElementById('fi-room').value.trim().toUpperCase()
   if(!room){ alert('Enter a room code'); return }
 
-  socket=io()
-  socket.on('connect',()=>socket.emit('join_room',{roomId:room,playerName:name}))
+  socket = io()
+  socket.on('connect', ()=>socket.emit('join_room',{roomId:room,playerName:name}))
   socket.on('joined',({playerIndex})=>myIndex=playerIndex)
+
   socket.on('waiting_for_opponent',()=>{
     document.getElementById('lobby').style.display='none'
     document.getElementById('waiting').style.display='flex'
     document.getElementById('wt-code').textContent=room
   })
-  socket.on('room_full',()=>{ alert('Room full! Try a different code.'); socket.disconnect(); socket=null })
+  socket.on('room_full',()=>{ alert('Room full!'); socket.disconnect(); socket=null })
+
   socket.on('game_start',({players,gameState:gs})=>{
-    pNames=players.map(p=>p.name)
-    document.getElementById('pn0').textContent=pNames[0]
-    document.getElementById('pn1').textContent=pNames[1]
-    document.getElementById('go-n0').textContent=pNames[0]
-    document.getElementById('go-n1').textContent=pNames[1]
+    pNames = players.map(p=>p.name)
+    document.getElementById('pn0').textContent = pNames[0]
+    document.getElementById('pn1').textContent = pNames[1]
+    document.getElementById('go-n0').textContent = pNames[0]
+    document.getElementById('go-n1').textContent = pNames[1]
     document.getElementById('lobby').style.display='none'
     document.getElementById('waiting').style.display='none'
     document.getElementById('exit-btn').style.display='block'
     gameOn=true
-    applyState(gs)
+
+    // Position both darts at centre to start
+    const sz = getBoardPx()
+    ;[0,1].forEach(i=>{
+      const d = document.getElementById('dart'+i)
+      positionDartAtPct(d, 50, 50, false)
+    })
+
+    applyState(gs, false, null)
   })
+
   socket.on('dart_thrown',({dart,bust,gameState:gs})=>{
-    // show dart at thrown position
-    placeDart(dart.hPct, dart.vPct)
-    showPopup(dart.score, bust)
-    // after 1.5s clear dart and apply new state
-    setTimeout(()=>applyState(gs), bust?2200:1600)
+    handleDartThrown(dart, bust, gs)
   })
-  socket.on('next_turn',({gameState:gs})=>applyState(gs))
+
+  socket.on('next_turn',({gameState:gs})=>{
+    applyState(gs, false, null)
+  })
+
   socket.on('game_over',({winnerName,scores})=>{
-    stopAll()
-    document.getElementById('go-name').textContent=winnerName+' wins!'
-    document.getElementById('go-v0').textContent=scores[0]
-    document.getElementById('go-v1').textContent=scores[1]
-    document.getElementById('gameover').style.display='flex'
+    stopMeters()
+    zoomOut()
+    document.getElementById('go-name').textContent = winnerName+' wins!'
+    document.getElementById('go-v0').textContent = scores[0]
+    document.getElementById('go-v1').textContent = scores[1]
+    setTimeout(()=>document.getElementById('gameover').style.display='flex', 2600)
   })
+
   socket.on('opponent_disconnected',()=>{
-    stopAll()
+    stopMeters()
     document.getElementById('turn-label').textContent='Opponent disconnected'
     document.getElementById('turn-label').style.display='block'
     document.getElementById('board-block').style.display='block'
